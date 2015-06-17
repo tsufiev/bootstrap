@@ -67,7 +67,28 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       //INTERNAL VARIABLES
 
       //model setter executed upon match selection
-      var $setModelValue = $parse(attrs.ngModel).assign;
+      var $setModelValue = (function() {
+        var options = $parse(attrs.ngModelOptions)(),
+          parsedNgModel = $parse(attrs.ngModel),
+          parsedNgModelAssign = $parse(attrs.ngModel).assign,
+          ngModelSet;
+        if (options && options.getterSetter) {
+          var invokeModelGetter = $parse(attrs.ngModel + '()'),
+            invokeModelSetter = $parse(attrs.ngModel + '($$$p)');
+
+          ngModelSet = function($scope, newValue) {
+            if (angular.isFunction(parsedNgModel($scope))) {
+              invokeModelSetter($scope, {
+                $$$p: newValue
+              });
+            } else {
+              parsedNgModelAssign($scope, modelCtrl.$modelValue);
+            }
+          };
+        }
+
+        return ngModelSet || parsedNgModelAssign;
+      })();
 
       //expressions used by typeahead
       var parserResult = typeaheadParser.parse(attrs.typeahead);
